@@ -1,29 +1,43 @@
-version: '3'
+# Images are built by GitHub Actions and pulled from ghcr.io, not built here.
+# Deploying is `docker compose pull && docker compose up -d`.
+#
+# Pin each service in .env to the exact image you want running, e.g.
+#   OSMQUERY_TAG=sha-9964804
+# Leave a tag unset to follow the branch (`main`, or `staging` on that stack).
+# `docker ps` then shows which commit a container came from, which was
+# impossible while images were built on the server without a version.
+
 services:
   osmquery:
-    build:
-      context: ./apis/osmquery
-      dockerfile: Dockerfile
+    image: ghcr.io/dw-innovation/spot-osm-query-api:${OSMQUERY_TAG:-main}
     ports:
       - "3000:5000"
     restart: "always"
     env_file:
       - ./.env
+    environment:
+      no_proxy: "localhost,127.0.0.1,dwelle.de,osmtagsearch"
 
   central_nlp:
-    build:
-      context: ./apis/kid2-spot-central-nlp-api
-      dockerfile: Dockerfile
+    image: ghcr.io/dw-innovation/spot-central-nlp-api:${CENTRAL_NLP_TAG:-main}
     ports:
       - "4000:8080"
     restart: "always"
     env_file:
       - ./.env
+    volumes:
+      - ./volumes/data:/app/data
+      - ./aws_config:/root/.aws
+    environment:
+      SEARCH_ENDPOINT: "http://osmtagsearch:8080/search_osm_tag_v2"
+      # The LLM hub is on dw.com rather than dwelle.de, so it is not covered
+      # by no_proxy and still goes through the corporate proxy.
+      http_proxy: "http://165.225.72.32:80/"
+      https_proxy: "http://165.225.72.32:80/"
+      no_proxy: "localhost,127.0.0.1,dwelle.de,osmtagsearch,mongodb.net"
 
   osmtagsearch:
-    build:
-      context: ./apis/osmtagsearch
-      dockerfile: Dockerfile
+    image: ghcr.io/dw-innovation/spot-osm-tag-search-api:${OSMTAGSEARCH_TAG:-main}
     ports:
       - "5000:8080"
     restart: "always"
@@ -31,6 +45,11 @@ services:
       - ./.env
     volumes:
       - ./volumes/osmtagsearch/model:/app/model
+    environment:
+      SEARCH_ENDPOINT: "http://osmtagsearch:8080/search_osm_tag_v2"
+      http_proxy: "http://165.225.72.32:80/"
+      https_proxy: "http://165.225.72.32:80/"
+      no_proxy: "localhost,127.0.0.1,dwelle.de,osmtagsearch,mongodb.net"
 
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.6.2
@@ -44,10 +63,16 @@ services:
     env_file:
       - ./.env
     networks:
+      # Also on the default network so osmtagsearch can reach it as
+      # http://elasticsearch:9200. It was only on `elastic`, which is why
+      # SEARCH_ENGINE_HOST had to point at another host entirely — on live,
+      # at the dev machine's Elasticsearch. Adding the network changes
+      # nothing by itself; it makes decoupling them possible.
       - elastic
+      - default
     volumes:
       - ./volumes/osmtagsearch/es_data:/usr/share/elasticsearch/data
     user: 1000:1000
-  
+
 networks:
   elastic:
