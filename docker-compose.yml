@@ -1,29 +1,44 @@
-version: '3'
+# Images are built by GitHub Actions and pulled from ghcr.io, not built here.
+# Deploying is `docker compose pull && docker compose up -d`.
+#
+# Pin each service in .env to the exact image you want running, e.g.
+#   OSMQUERY_TAG=sha-9964804
+# Leave a tag unset to follow the branch (`main`, or `staging` on that stack).
+# `docker ps` then shows which commit a container came from, which was
+# impossible while images were built on the server without a version.
+#
+# Proxy settings are deployment-specific and live in .env as SPOT_HTTP_PROXY,
+# SPOT_HTTPS_PROXY and SPOT_NO_PROXY. Leave them unset where there is no proxy.
+
 services:
   osmquery:
-    build:
-      context: ./apis/osmquery
-      dockerfile: Dockerfile
+    image: ghcr.io/dw-innovation/spot-osm-query-api:${OSMQUERY_TAG:-main}
     ports:
       - "3000:5000"
     restart: "always"
     env_file:
       - ./.env
+    environment:
+      no_proxy: "${SPOT_NO_PROXY:-}"
 
   central_nlp:
-    build:
-      context: ./apis/kid2-spot-central-nlp-api
-      dockerfile: Dockerfile
+    image: ghcr.io/dw-innovation/spot-central-nlp-api:${CENTRAL_NLP_TAG:-main}
     ports:
       - "4000:8080"
     restart: "always"
     env_file:
       - ./.env
+    volumes:
+      - ./volumes/data:/app/data
+      - ./aws_config:/root/.aws
+    environment:
+      SEARCH_ENDPOINT: "http://osmtagsearch:8080/search_osm_tag_v2"
+      http_proxy: "${SPOT_HTTP_PROXY:-}"
+      https_proxy: "${SPOT_HTTPS_PROXY:-}"
+      no_proxy: "${SPOT_NO_PROXY:-}"
 
   osmtagsearch:
-    build:
-      context: ./apis/osmtagsearch
-      dockerfile: Dockerfile
+    image: ghcr.io/dw-innovation/spot-osm-tag-search-api:${OSMTAGSEARCH_TAG:-main}
     ports:
       - "5000:8080"
     restart: "always"
@@ -31,6 +46,11 @@ services:
       - ./.env
     volumes:
       - ./volumes/osmtagsearch/model:/app/model
+    environment:
+      SEARCH_ENDPOINT: "http://osmtagsearch:8080/search_osm_tag_v2"
+      http_proxy: "${SPOT_HTTP_PROXY:-}"
+      https_proxy: "${SPOT_HTTPS_PROXY:-}"
+      no_proxy: "${SPOT_NO_PROXY:-}"
 
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.6.2
@@ -44,10 +64,13 @@ services:
     env_file:
       - ./.env
     networks:
+      # Also on the default network so osmtagsearch can reach it as
+      # http://elasticsearch:9200.
       - elastic
+      - default
     volumes:
       - ./volumes/osmtagsearch/es_data:/usr/share/elasticsearch/data
     user: 1000:1000
-  
+
 networks:
   elastic:
