@@ -16,3 +16,6 @@
 [submodule "data_and_training/datageneration"]
 	path = data_and_training/datageneration
 	url = https://github.com/dw-innovation/kid2-spot-datageneration
+[submodule "apis/chatapi"]
+	path = apis/chatapi
+	url = https://github.com/dw-innovation/SPOT-chat-api

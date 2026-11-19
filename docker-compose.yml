@@ -37,6 +37,20 @@ services:
       https_proxy: "${SPOT_HTTPS_PROXY:-}"
       no_proxy: "${SPOT_NO_PROXY:-}"
 
+  chat_api:
+    image: ghcr.io/dw-innovation/spot-chat-api:${CHAT_API_TAG:-main}
+    ports:
+      - "8000:8000"
+    restart: "always"
+    env_file:
+      - ./.env
+    environment:
+      # Browsers calling the API directly need the frontend's origin here.
+      SPOT_CORS_ORIGINS: "${SPOT_CORS_ORIGINS:-*}"
+      http_proxy: "${SPOT_HTTP_PROXY:-}"
+      https_proxy: "${SPOT_HTTPS_PROXY:-}"
+      no_proxy: "${SPOT_NO_PROXY:-}"
+
   osmtagsearch:
     image: ghcr.io/dw-innovation/spot-osm-tag-search-api:${OSMTAGSEARCH_TAG:-main}
     ports:

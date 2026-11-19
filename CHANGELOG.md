@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CONTRIBUTING.md and CODE_OF_CONDUCT.md
 - Initial AGPLv3 license
 - Centralized Docker Compose file for all modules
+- Chat API (`apis/chatapi`) as submodule and `chat_api` service in Docker Compose
 
 ---
 

@@ -44,6 +44,7 @@ kid2-spot/
 ├── apis/
 │   ├── osmquery/             # Queries local OSM DB
 │   ├── osmtagsearch/         # Maps phrases to OSM tag bundles
+│   ├── chatapi/              # Chat-style query building (multi-turn, tool-based)
 │   └── central-nlp-api/      # Orchestrates inference & pipeline
 ├── data_and_training/
 │   ├── datageneration/       # Synthetic data generation
